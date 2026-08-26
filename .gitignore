@@ -1,0 +1,32 @@
+# --- macOS / iCloud Drive ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+# iCloud placeholder files for not-yet-downloaded content
+*.icloud
+
+# --- Chrome extension packaging ---
+# Private signing key: NEVER commit this
+*.pem
+# Packed/uploaded builds
+*.crx
+*.zip
+dist/
+build/
+web-ext-artifacts/
+
+# --- Node / tooling (if added later) ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.env
+.env.local
+
+# --- Editors ---
+.vscode/
+.idea/
+*.swp
