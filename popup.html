@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Scholar Top Result to BibTeX</title>
+  </head>
+  <body>
+    <header>
+      <img src="icons/icon32.png" alt="" width="20" height="20" />
+      <h1>Scholar &rarr; BibTeX</h1>
+    </header>
+
+    <label class="field">
+      <span>Paper title</span>
+      <textarea
+        id="title"
+        rows="3"
+        placeholder="Attention is all you need"
+        spellcheck="false"
+      ></textarea>
+    </label>
+
+    <button id="run" type="button">Copy top result BibTeX</button>
+
+    <p id="status" class="status status--idle">Enter a title and press the button.</p>
+
+    <footer>
+      <span class="hint">
+        Tip: select a title on any page, then use the context menu or
+        <kbd id="shortcut">Ctrl+Shift+B</kbd>.
+      </span>
+      <a href="#" id="shortcuts-link">Change shortcut</a>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
