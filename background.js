@@ -316,14 +316,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /* ------------------------------------------------- context menu + command */
 
+/*
+ * onInstalled and onStartup can both fire, and each fires again on a manual
+ * reload of an unpacked extension. Two overlapping installs used to interleave
+ * as removeAll / removeAll / create / create, and the second create threw
+ * "Cannot create item with duplicate id". So: serialize the whole sequence
+ * behind one promise, and swallow lastError on the create itself.
+ */
+let menuInstall = null;
+
 function installContextMenu() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: MENU_ID,
-      title: 'Copy Scholar BibTeX for "%s"',
-      contexts: ['selection']
+  if (menuInstall) return menuInstall;
+
+  menuInstall = (async () => {
+    await new Promise((resolve) => chrome.contextMenus.removeAll(() => {
+      void chrome.runtime.lastError;
+      resolve();
+    }));
+    await new Promise((resolve) => {
+      chrome.contextMenus.create(
+        {
+          id: MENU_ID,
+          title: 'Copy Scholar BibTeX for "%s"',
+          contexts: ['selection']
+        },
+        () => {
+          // Already present (e.g. a race we did not serialize) is harmless;
+          // reading lastError is what stops Chrome logging it as unchecked.
+          const err = chrome.runtime.lastError;
+          if (err && !/duplicate id/i.test(err.message || '')) {
+            console.warn('context menu:', err.message);
+          }
+          resolve();
+        }
+      );
     });
+  })().finally(() => {
+    menuInstall = null;
   });
+
+  return menuInstall;
 }
 
 chrome.runtime.onInstalled.addListener(() => {
