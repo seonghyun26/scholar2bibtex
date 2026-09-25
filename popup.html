@@ -12,13 +12,18 @@
     </header>
 
     <label class="field">
-      <span>Paper title</span>
+      <span>Paper title<em id="source" hidden></em></span>
       <textarea
         id="title"
         rows="3"
         placeholder="Attention is all you need"
         spellcheck="false"
       ></textarea>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" id="close-tab" checked />
+      <span>Close the Scholar tab when done</span>
     </label>
 
     <button id="run" type="button">Copy top result BibTeX</button>

@@ -3,6 +3,8 @@ const runEl = document.getElementById('run');
 const statusEl = document.getElementById('status');
 const shortcutEl = document.getElementById('shortcut');
 const shortcutsLink = document.getElementById('shortcuts-link');
+const closeTabEl = document.getElementById('close-tab');
+const sourceEl = document.getElementById('source');
 
 const BUSY_STATUSES = new Set(['searching', 'citing', 'fetching']);
 
@@ -14,7 +16,12 @@ function render(job) {
   }
 
   if (job.status === 'done') {
-    setStatus('ok', '✓ BibTeX copied to the clipboard.');
+    setStatus(
+      'ok',
+      job.tabKeptOpen
+        ? '✓ BibTeX copied. The Scholar tab was left open.'
+        : '✓ BibTeX copied to the clipboard.'
+    );
     runEl.disabled = false;
   } else if (job.status === 'error') {
     setStatus('err', `! ${job.message || 'Lookup failed.'}`);
@@ -58,6 +65,13 @@ titleEl.addEventListener('keydown', (event) => {
   }
 });
 
+closeTabEl.addEventListener('change', () => {
+  chrome.runtime.sendMessage({
+    type: 'SET_SETTINGS',
+    settings: { closeTabWhenDone: closeTabEl.checked }
+  });
+});
+
 shortcutsLink.addEventListener('click', (event) => {
   event.preventDefault();
   chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
@@ -80,7 +94,18 @@ chrome.storage.session.onChanged.addListener((changes) => {
   }
 
   const state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
-  if (state && state.lastTitle) titleEl.value = state.lastTitle;
+  if (state && state.settings) {
+    closeTabEl.checked = state.settings.closeTabWhenDone !== false;
+  }
+
+  // Prefilling from the last search is a convenience, never an auto-search:
+  // the text is selected so typing over it replaces it.
+  if (state && state.lastTitle) {
+    titleEl.value = state.lastTitle;
+    sourceEl.textContent = 'last search';
+    sourceEl.hidden = false;
+  }
+
   render(state && state.job);
   titleEl.focus();
   titleEl.select();

@@ -19,6 +19,8 @@ const { normalizeTitle, looksLikeTitle } = self.ScholarTitle;
 const SEARCH_URL = 'https://scholar.google.com/scholar?hl=en&as_sdt=0,5&q=';
 const JOB_KEY = 'job';
 const LAST_TITLE_KEY = 'lastTitle';
+const SETTINGS_KEY = 'settings';
+const DEFAULT_SETTINGS = { closeTabWhenDone: true };
 const JOB_TIMEOUT_MS = 60000;
 const MENU_ID = 'scholar-bibtex-selection';
 
@@ -70,6 +72,18 @@ function isActive(job) {
   return (
     job && job.status !== STATUS.DONE && job.status !== STATUS.ERROR
   );
+}
+
+/** Settings live in storage.local so they survive a browser restart. */
+async function getSettings() {
+  const stored = await chrome.storage.local.get(SETTINGS_KEY);
+  return { ...DEFAULT_SETTINGS, ...(stored[SETTINGS_KEY] || {}) };
+}
+
+async function setSettings(patch) {
+  const next = { ...(await getSettings()), ...patch };
+  await chrome.storage.local.set({ [SETTINGS_KEY]: next });
+  return next;
 }
 
 /* ------------------------------------------------------------------ badge */
@@ -148,15 +162,19 @@ async function failJob(id, message, options = {}) {
 }
 
 async function finishJob(id, bibtex) {
+  const { closeTabWhenDone } = await getSettings();
   const job = await patchJob(id, {
     status: STATUS.DONE,
-    message: 'BibTeX copied to the clipboard.',
+    message: closeTabWhenDone
+      ? 'BibTeX copied to the clipboard.'
+      : 'BibTeX copied. The Scholar tab was left open.',
+    tabKeptOpen: !closeTabWhenDone,
     bibtexPreview: bibtex.slice(0, 400),
     finishedAt: Date.now()
   });
   if (!job) return;
   await setBadge('ok');
-  if (job.tabId != null && job.closeTabWhenDone !== false) {
+  if (closeTabWhenDone && job.tabId != null) {
     try {
       await chrome.tabs.remove(job.tabId);
     } catch (_) {
@@ -246,9 +264,13 @@ async function handleMessage(message, sender) {
       const stored = await chrome.storage.session.get([JOB_KEY, LAST_TITLE_KEY]);
       return {
         job: stored[JOB_KEY] || null,
-        lastTitle: stored[LAST_TITLE_KEY] || ''
+        lastTitle: stored[LAST_TITLE_KEY] || '',
+        settings: await getSettings()
       };
     }
+
+    case 'SET_SETTINGS':
+      return { ok: true, settings: await setSettings(message.settings || {}) };
 
     case 'CLEAR_BADGE':
       await setBadge('none');
