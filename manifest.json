@@ -48,7 +48,7 @@
     "copy-bibtex": {
       "suggested_key": {
         "default": "Ctrl+Shift+B",
-        "mac": "Command+Shift+B"
+        "mac": "MacCtrl+Command+B"
       },
       "description": "Copy Scholar BibTeX for the selected title"
     }

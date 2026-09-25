@@ -83,7 +83,7 @@ chrome.storage.session.onChanged.addListener((changes) => {
 
 (async () => {
   if (navigator.userAgent.includes('Mac')) {
-    shortcutEl.textContent = 'Command+Shift+B';
+    shortcutEl.textContent = 'Control+Command+B';
   }
   try {
     const commands = await chrome.commands.getAll();
