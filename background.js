@@ -12,6 +12,10 @@
  * survives the service worker being torn down mid-job.
  */
 
+importScripts('title-utils.js');
+
+const { normalizeTitle, looksLikeTitle } = self.ScholarTitle;
+
 const SEARCH_URL = 'https://scholar.google.com/scholar?hl=en&as_sdt=0,5&q=';
 const JOB_KEY = 'job';
 const LAST_TITLE_KEY = 'lastTitle';
@@ -162,7 +166,7 @@ async function finishJob(id, bibtex) {
 }
 
 async function startJob(rawTitle, options = {}) {
-  const title = String(rawTitle || '').replace(/\s+/g, ' ').trim();
+  const title = normalizeTitle(rawTitle);
   if (!title) {
     const id = `job-${Date.now()}`;
     await saveJob({
@@ -337,38 +341,46 @@ chrome.contextMenus.onClicked.addListener((info) => {
   startJob(info.selectionText, { source: 'contextMenu' });
 });
 
+async function readSelection() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || tab.id == null || !/^https?:/.test(tab.url || '')) return '';
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => (window.getSelection() ? window.getSelection().toString() : '')
+    });
+    return (result && result.result) || '';
+  } catch (_) {
+    // Restricted page, or activeTab was not granted for this invocation.
+    return '';
+  }
+}
+
+/*
+ * Shortcut resolution order, per priority:
+ *   1. text selected on the current page
+ *   2. the popup, for manual entry
+ *
+ * The clipboard is deliberately not consulted. Reading it silently turns
+ * whatever the user last copied - often unrelated - into a Scholar request they
+ * did not ask for, and from an offscreen document the read is unreliable
+ * anyway. If there is no selection, ask.
+ */
 chrome.commands.onCommand.addListener(async (command) => {
   if (command !== 'copy-bibtex') return;
 
-  let selection = '';
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.id != null && /^https?:/.test(tab.url || '')) {
-      const [result] = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => (window.getSelection() ? window.getSelection().toString() : '')
-      });
-      selection = (result && result.result) || '';
-    }
-  } catch (_) {
-    /* restricted page, or activeTab not granted - fall through */
-  }
-
-  if (selection.trim()) {
-    await startJob(selection, { source: 'shortcut' });
-    return;
-  }
-
-  const stored = await chrome.storage.session.get(LAST_TITLE_KEY);
-  if (stored[LAST_TITLE_KEY]) {
-    await startJob(stored[LAST_TITLE_KEY], { source: 'shortcut-repeat' });
+  const selection = await readSelection();
+  if (looksLikeTitle(selection)) {
+    await startJob(selection, { source: 'selection' });
     return;
   }
 
   try {
     await chrome.action.openPopup();
   } catch (_) {
-    /* openPopup is not available everywhere; the user can click the icon */
+    // openPopup needs a recent user gesture and is not available everywhere;
+    // the badge is the fallback hint to click the icon.
+    await setBadge('err');
   }
 });
 
