@@ -10,7 +10,9 @@
 (function (root) {
   'use strict';
 
-  const MIN_LENGTH = 6;
+  // 3 rather than 6: a single acronym - GPT, ViT, BERT - is a real thing to
+  // drag, and the length floor was the only reason those were turned away.
+  const MIN_LENGTH = 3;
   const MAX_LENGTH = 300;
   const MAX_LINES = 6;
 
@@ -44,9 +46,10 @@
     // Code-ish or structured payloads.
     if (/^[[{<]/.test(text)) return false;
 
-    // Must contain letters (Latin or Hangul) and read as more than one token.
+    // Must contain letters (Latin or Hangul). A single token is accepted: model
+    // and dataset names are routinely what gets dragged, and rejecting them only
+    // pushed the shortcut into the popup, which is worse than one wasted search.
     if (!/[A-Za-zÀ-ɏ가-힣]/.test(text)) return false;
-    if (text.split(' ').filter(Boolean).length < 2) return false;
 
     // A whole paragraph pasted by accident is not a title.
     const lines = source.split(/\r?\n/).filter((line) => line.trim()).length;
